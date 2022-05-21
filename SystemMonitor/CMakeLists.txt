@@ -3,8 +3,11 @@
 file(GLOB SOURCES *.cpp)
 file(GLOB HEADERS *.h)
 
+find_package(Curses REQUIRED)
+
 add_executable (SystemMonitor ${SOURCES} ${HEADERS})
-target_link_libraries(SystemMonitor "pthread")
+target_link_libraries(SystemMonitor ${CURSES_LIBRARIES})
+target_include_directories(SystemMonitor PUBLIC ${CURSES_INCLUDE_DIR})
 
 set_target_properties(
 	SystemMonitor PROPERTIES

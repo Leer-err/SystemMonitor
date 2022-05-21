@@ -1,7 +1,9 @@
 ﻿#pragma once
 #include <map>
 #include <vector>
+
 #include "Process.h"
+#include "Thread.h"
 
 using std::map;
 using std::vector;
@@ -24,6 +26,7 @@ public:
     inline uint32_t get_uptime() const { return m_uptime; }
 
     vector<Process> get_processes() const;
+    vector<Thread> get_threads() const;
 private:
     System_monitor() = default;
     ~System_monitor() = default;
@@ -32,6 +35,7 @@ private:
     System_monitor& operator=(const System_monitor&) = delete;
 
     map<pid_t, Process> m_processes;
+    map<pid_t, Thread> m_threads;
 
     uint32_t m_current_time;
     uint32_t m_last_time;

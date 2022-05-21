@@ -6,7 +6,9 @@
 #include <algorithm>
 #include <dirent.h>
 
+#include "utility.h"
 #include "Process.h"
+#include "Thread.h"
 
 using std::vector;
 using std::string;
@@ -17,26 +19,91 @@ using std::all_of;
 using std::to_string;
 
 constexpr char* proc_dir = "/proc";
+constexpr char* task_dir = "/task";
 constexpr char* proc_stat_file = "/stat";
 constexpr char* stat_path = "/proc/stat";
 constexpr char* mem_path = "/proc/meminfo";
 constexpr char* uptime_path = "/proc/uptime";
 constexpr char* kernel_path = "/proc/version";
 
-Process get_process_data(pid_t pid) {
-    pid_t ppid;
-    string name;
+vector<pid_t> get_ids(string dir);
+
+Thread get_thread_data(pid_t pid, pid_t tid) {
+    int priority;
+    uint32_t user_time, kernel_time;
+    uint64_t start_time;
     char state;
-    int tty, num_threads;
-    uint32_t user_time, kernel_time, mem_size;
-    uint64_t start_time, dump;
+    string dump;
 
     string path = proc_dir;
     path += "/";
     path += to_string(pid);
-    path += proc_stat_file;
+    path += task_dir;
+    path += "/";
+    path += to_string(tid);
 
-    ifstream data_file(path);
+    ifstream data_file(path + proc_stat_file);
+
+    if (data_file.is_open()) {
+        string file_data;
+        getline(data_file, file_data);
+
+        istringstream st(file_data);
+        st >> dump >> dump >> state
+            >> dump >> dump >> dump >> dump >> dump
+            >> dump >> dump >> dump >> dump >> dump >> user_time
+            >> kernel_time >> dump >> dump >> priority
+            >> dump >> dump >> dump >> start_time;
+
+        return Thread(pid, tid, kernel_time + user_time, start_time, priority, parse_state(state));
+    }
+    return Thread();
+}
+
+void update_thread_data(pid_t pid, pid_t tid, Thread& thread) {
+    int priority;
+    uint32_t user_time, kernel_time;
+    uint64_t start_time;
+    string dump;
+
+    string path = proc_dir;
+    path += "/";
+    path += to_string(pid);
+    path += task_dir;
+    path += "/";
+    path += to_string(tid);
+
+    ifstream data_file(path + proc_stat_file);
+
+    if (data_file.is_open()) {
+        string file_data;
+        getline(data_file, file_data);
+
+        istringstream st(file_data);
+        st >> dump >> dump >> dump
+            >> dump >> dump >> dump >> dump >> dump
+            >> dump >> dump >> dump >> dump >> dump >> user_time
+            >> kernel_time >> dump >> dump >> priority
+            >> dump >> dump >> dump >> start_time;
+
+        thread.set_priority(priority);
+        thread.set_time(kernel_time + user_time);
+    }
+}
+
+Process get_process_data(pid_t pid) {
+    pid_t ppid;
+    string name;
+    char state;
+    uint32_t user_time, kernel_time, mem_size;
+    uint64_t start_time, dump;
+    vector<pid_t> threads;
+
+    string path = proc_dir;
+    path += "/";
+    path += to_string(pid);
+
+    ifstream data_file(path + proc_stat_file);
 
     if (data_file.is_open()) {
         string file_data;
@@ -44,13 +111,15 @@ Process get_process_data(pid_t pid) {
 
         istringstream st(file_data);
         st >> dump >> name >> state
-            >> ppid >> dump >> dump >> tty >> dump
+            >> ppid >> dump >> dump >> dump >> dump
             >> dump >> dump >> dump >> dump >> dump >> user_time
             >> kernel_time >> dump >> dump >> dump
-            >> dump >> num_threads >> dump >> start_time
+            >> dump >> dump >> dump >> start_time
             >> mem_size;
 
-        return Process(pid, { name.begin() + 1, name.end() - 1 }, Process::parse_state(state), ppid, num_threads, mem_size, kernel_time + user_time, tty, start_time);
+        threads = get_ids(path + task_dir);
+
+        return Process(pid, { name.begin() + 1, name.end() - 1 }, parse_state(state), ppid, mem_size, kernel_time + user_time, start_time, threads);
     }
     return Process();
 }
@@ -59,16 +128,15 @@ void update_process_data(pid_t pid, Process& process) {
     pid_t ppid;
     string name;
     char state;
-    int tty, num_threads;
     uint32_t user_time, kernel_time, mem_size;
     uint64_t start_time, dump;
+    vector<pid_t> threads;
 
     string path = proc_dir;
     path += "/";
     path += to_string(pid);
-    path += proc_stat_file;
 
-    ifstream data_file(path);
+    ifstream data_file(path + proc_stat_file);
 
     if (data_file.is_open()) {
         string file_data;
@@ -76,22 +144,24 @@ void update_process_data(pid_t pid, Process& process) {
 
         istringstream st(file_data);
         st >> dump >> name >> state
-            >> ppid >> dump >> dump >> tty >> dump
+            >> ppid >> dump >> dump >> dump >> dump
             >> dump >> dump >> dump >> dump >> dump >> user_time
             >> kernel_time >> dump >> dump >> dump
-            >> dump >> num_threads >> dump >> start_time
+            >> dump >> dump >> dump >> start_time
             >> mem_size;
 
+        threads = get_ids(path + task_dir);
+
         process.set_mem_size(mem_size);
-        process.set_num_threads(num_threads);
-        process.set_state(Process::parse_state(state));
+        process.set_state(parse_state(state));
         process.set_time(kernel_time + user_time);
+        process.set_threads(threads);
     }
 }
 
-vector<pid_t> get_pids() {
+vector<pid_t> get_ids(string dir) {
     vector<int> pids;
-    DIR* directory = opendir(proc_dir);
+    DIR* directory = opendir(dir.c_str());
     struct dirent* file;
     while ((file = readdir(directory)) != nullptr) {
         if (file->d_type == DT_DIR) {
@@ -104,18 +174,6 @@ vector<pid_t> get_pids() {
     }
     closedir(directory);
     return pids;
-}
-
-string get_kernel() {
-    ifstream kernel(kernel_path);
-    string line, res;
-
-    if (kernel.is_open()) {
-        getline(kernel, line);
-        istringstream linestream(line);
-        linestream >> res >> res >> res;
-    }
-    return res;
 }
 
 uint32_t get_used_mem() {
@@ -179,7 +237,7 @@ uint32_t get_cpu_usage() {
     return res_time;
 }
 
-uint32_t get_processor_time() {
+uint32_t get_cpu_time() {
     ifstream data_file(stat_path);
     uint32_t res_time = 0;
 

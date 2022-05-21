@@ -1,85 +1,64 @@
-#include <iostream>
-#include <thread>
-#include <atomic>
-#include <mutex>
 #include <sys/signal.h>
 
 #include "System_monitor.h"
-#include "Output_manager.h"
+#include "Interface.h"
 
 using namespace std;
 
-atomic<bool> is_running = true;
-mutex output_mutex;
-
-void input() {
-	while (is_running) {
-		char a;
-		cin >> a;
-		switch (a) {
-		case 'q':
-			is_running = false;
-			break;
-		case 'k':
-			output_mutex.lock();
-			{
-				system("clear");
-				int pid, code;
-				cout << "Enter pid: ";
-				cin >> pid;
-				cout << "Enter signal code: ";
-				cin >> code;
-				if (kill(pid, code) == -1) {
-					cout << "Error " << errno << ": Something went wrong while sending signal" << endl;
-					cin >> a;
-				}
-			}
-			output_mutex.unlock();
-			break;
-		case 'm':
-			output_mutex.lock();
-			Output_manager::get().set_sort_mem();
-			output_mutex.unlock();
-			break;
-		case 'c':
-			output_mutex.lock();
-			Output_manager::get().set_sort_cpu();
-			output_mutex.unlock();
-			break;
-		case 'n':
-			output_mutex.lock();
-			Output_manager::get().set_sort_thread();
-			output_mutex.unlock();
-			break;
-		case 'p':
-			{
-				output_mutex.lock();
-				system("clear");
-				int num;
-				cout << "Enter new process show number: " << endl;
-				cin >> num;
-				Output_manager::get().set_show_num(num);
-				output_mutex.unlock(); 
-			}
-			break;
-		default:
-			break;
-		}
-	}
+void resizeHandler(int sig)
+{
+	Interface::get().set_window_size();
 }
 
 int main() {
-	thread th(input);
-	th.detach();
-	
-	while (is_running) {
-		output_mutex.lock();
-		system("clear");
+	signal(SIGWINCH, resizeHandler);
+
+	Interface::get().set_window_size();
+
+	while (true) {
+		char a;
+
+		erase();
+
+		a = getch();
+		switch (a) {
+		case 'q':
+			return 0;
+		case 'h':
+			Interface::get().print_help();
+			continue;
+		case 'k':
+			Interface::get().send_signal();
+			continue;
+		case 'm':
+			Interface::get().set_sort_mem();
+			break;
+		case 'c':
+			Interface::get().set_sort_cpu();
+			break;
+		case 'n':
+			Interface::get().set_sort_thread();
+			break;
+		case 't':
+			Interface::get().set_show_thread();
+			break;
+		case 'i':
+			Interface::get().set_show_proc();
+			break;
+		case 'p':
+			Interface::get().set_show_num();
+			continue;
+		case 'a':
+			Interface::get().show_all();
+			continue;
+		default:
+			break;
+		}
 
 		System_monitor::get().update();
-		Output_manager::get().output_sys_info();
-		Output_manager::get().output_processes_info();
-		output_mutex.unlock();
+
+		Interface::get().update();
+		refresh();
 
 		sleep(1);
 	}
