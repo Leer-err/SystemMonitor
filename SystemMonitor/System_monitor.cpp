@@ -1,7 +1,6 @@
 ﻿#include "System_monitor.h"
 
 #include <algorithm>
-
 #include "system.h"
 
 using namespace std;

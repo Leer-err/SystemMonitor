@@ -1,0 +1,357 @@
+import {ScrollView, LineEdit} from "std-widgets.slint";
+
+export struct ProcessData := {
+    name: string,
+    id: int,
+    parent_id: int,
+    cpu_per: int,
+    mem: int,
+    up_hours: int,
+    up_minutes: int,
+    up_seconds: int,
+}
+
+export struct ThreadData := {
+    tid: int,
+    pid: int,
+    cpu_per: int,
+    up_hours: int,
+    up_minutes: int,
+    up_seconds: int,
+}
+
+export struct TimeStamp := {
+    cpu: int,
+    mem: int,
+}
+ProcessHeader := HorizontalLayout{
+    Text { 
+        width: 300px;
+        text: "Name";
+     }
+    Text { 
+        width: 200px;
+        text:"ID";
+     }
+    Text { 
+        width: 200px;
+        text:"Parent ID";
+     }
+    Text { 
+        width: 200px;
+        text:"CPU%";
+     }
+    Text { 
+        width: 200px;
+        text:"Memory";
+     }
+    Text {
+        text:"Uptime";
+     }
+}
+
+ThreadHeader := HorizontalLayout{
+    Text { 
+        width: 200px;
+        text:"Thread ID";
+     }
+    Text { 
+        width: 200px;
+        text:"Process ID";
+     }
+    Text { 
+        width: 200px;
+        text:"CPU%";
+     }
+    Text {
+        text:"Uptime";
+     }
+}
+
+SystemInfo := HorizontalLayout{
+    property <[TimeStamp]> graph;
+
+    property <int> memory_installed;
+    property <int> memory_used;
+    property <int> cpu_used;
+    property <int> memory_utilization;
+
+    HorizontalLayout{ 
+        spacing: 20px;
+        alignment: start;
+        VerticalLayout {
+            y:parent.height - system_memory.height - height/2;
+            alignment: start;
+            system_memory := Text{text:"Memory: " + memory-used + "/" + memory-installed + " Mb " + memory-utilization + " %";}
+            Text{text:"CPU: " + cpu_used + " %";}
+        }
+        HorizontalLayout {
+            VerticalLayout { 
+            Path {
+                width: 200px;
+                height: 100px;
+                stroke: blue;
+                stroke-width: 1px;
+
+                MoveTo{x:0;y:0;}
+                LineTo{x:0;y:100;}
+                LineTo{x:200;y:100;}
+                LineTo{x:200;y:0;}
+                LineTo {x:0;y:0;}
+                MoveTo{x: 0;y:100-graph[0].cpu;}
+                LineTo{x: 50;y:100-graph[1].cpu;}
+                LineTo{x: 100;y:100-graph[2].cpu;}
+                LineTo{x: 150;y:100-graph[3].cpu;}
+                LineTo{x: 200;y:100-graph[4].cpu;}
+                MoveTo{x: 0;y:0;}
+                Close{}
+            }
+            Text { 
+                text: "CPU usage";
+             }
+            }
+            VerticalLayout {
+            Path {
+                width: 200px;
+                height: 100px;
+                stroke: red;
+                stroke-width: 1px;
+
+                MoveTo{x:0;y:0;}
+                LineTo{x:0;y:100;}
+                LineTo{x:200;y:100;}
+                LineTo{x:200;y:0;}
+                LineTo {x:0;y:0;}
+                MoveTo{x: 0;y:100-graph[0].mem;}
+                LineTo{x: 50;y:100-graph[1].mem;}
+                LineTo{x: 100;y:100-graph[2].mem;}
+                LineTo{x: 150;y:100-graph[3].mem;}
+                LineTo{x: 200;y:100-graph[4].mem;}
+                MoveTo{x: 0;y:0;}
+                Close{}
+            }
+            Text { 
+                text: "Memory usage";
+             }
+            } 
+        }
+     }
+}
+
+Process := HorizontalLayout{
+    property<string> name;
+    property<int> id;
+    property<int> parent_id;
+    property<int> cpu;
+    property<int> mem;
+    property<int> seconds;
+    property<int> hours;
+    property<int> minutes;
+
+    alignment: start;
+
+    Text { 
+        width: 300px;
+        text: name;
+     }
+    Text { 
+        width: 200px;
+        text:id;
+     }
+    Text { 
+        width: 200px;
+        text:parent_id;
+     }
+    Text { 
+        width: 200px;
+        text:cpu;
+     }
+    Text { 
+        width: 200px;
+        text:mem;
+     }
+    Text {
+        text:hours + "." + minutes + "." + seconds;
+    }
+}
+
+Thread := HorizontalLayout{
+    property<int> tid;
+    property<int> pid;
+    property<int> cpu;
+    property<int> seconds;
+    property<int> hours;
+    property<int> minutes;
+
+    alignment: start;
+
+    Text { 
+        width: 200px;
+        text:tid;
+     }
+    Text { 
+        width: 200px;
+        text:pid;
+     }
+    Text { 
+        width: 200px;
+        text:cpu;
+     }
+    Text {
+        text:hours + "." + minutes + "." + seconds;
+    }
+}
+
+
+HelloWorld := Window {
+    callback check_pid(int) -> bool;
+    callback send_signal(int, int) -> bool;
+    callback set_out_threads();
+    callback set_out_processes();
+    callback set_sort_mem();
+    callback set_sort_cpu();
+
+    property <[TimeStamp]> graph <=> info.graph;
+    property <[ProcessData]> processes;
+    property <[ThreadData]> threads;
+    property <int> memory_installed <=> info.memory_installed;
+    property <int> memory_used <=> info.memory_used;
+    property <int> memory_utilization <=> info.memory_utilization;
+    property <int> cpu_used <=> info.cpu_used;
+    property <int> active-page : 0;
+
+    width: 1280px;
+    height: 720px;
+
+    title: "SMonitor";
+
+    my-key-handler := FocusScope {
+        key-pressed(event) => {
+            if (event.text == "h") {
+                active-page = 1;
+            }
+            if (event.text == "p") {
+                active-page = 0;
+                set_out_processes();
+            }
+            if (event.text == "t") {
+                active-page = 3;
+                set_out_threads();
+            }
+            if (event.text == "c") {
+                set_sort_cpu();
+            }
+            if (event.text == "m") {
+                set_sort_mem();
+            }
+            if (event.text == "k") {
+                active-page = 2;
+            }
+            accept
+        }
+    }
+    
+    main_window := VerticalLayout { 
+        y: active-page == 0 || active-page == 3 ? 0 : active-page < 0 ? - height - 1px : parent.height + 1px;
+        animate y { duration: 125ms; easing: ease; }
+        info := SystemInfo {}
+        Rectangle {
+        processList := VerticalLayout{
+            y: active-page == 0 ? 0 : active-page < 0 ? - height - 1px : parent.height + 1px;
+            animate y { duration: 125ms; easing: ease; }
+            ProcessHeader {}
+            ScrollView {
+                VerticalLayout {
+                    spacing: 3px;
+                    alignment: start;
+                    for process in root.processes: Rectangle{
+                        border-width: 1px;
+                        border-radius: 3px;
+                        border-color: black;
+                        Process {
+                            padding: 5px;
+                            name: process.name;
+                            id: process.id;
+                            parent_id: process.parent_id;
+                            cpu: process.cpu_per;
+                            mem: process.mem;
+                            seconds: process.up_seconds;
+                            hours: process.up_hours;
+                            minutes: process.up_minutes;
+                        }
+                    }
+                }
+            }  
+        }
+        threadList := VerticalLayout{
+            y: active-page == 3 ? 0 : active-page < 0 ? - height - 1px : parent.height + 1px;
+            animate y { duration: 125ms; easing: ease; }
+            ThreadHeader {}
+            ScrollView {
+                VerticalLayout {
+                    y: active-page == 3 ? 0 : active-page < 0 ? - height - 1px : parent.height + 1px;
+                    animate y { duration: 125ms; easing: ease; }
+                    spacing: 3px;
+                    alignment: start;
+                    for thread in root.threads: Rectangle{
+                        border-width: 1px;
+                        border-radius: 3px;
+                        border-color: black;
+                        Thread {
+                            padding: 5px;
+                            tid: thread.tid;
+                            pid: thread.pid;
+                            cpu: thread.cpu_per;
+                            seconds: thread.up_seconds;
+                            hours: thread.up_hours;
+                            minutes: thread.up_minutes;
+                        }
+                    }
+                }
+            }  
+        }
+    }
+    }
+
+    help_window := VerticalLayout{
+        y: active-page == 1 ? 0 : active-page < 0 ? - height - 1px : parent.height + 1px;
+        animate y { duration: 125ms; easing: ease; }
+        Text { text:"This is help message";}
+        Text { text:"k - send signal to process";}
+        Text { text:"c - set sort mode to cpu usage";}
+        Text { text:"m - set sort mode to memory consuption";}
+        Text { text:"t - change output mode to threads";}
+        Text { text:"p - change output mode to processes";}
+        Text { text:"h - print this message";}
+    }
+
+    signal_window := VerticalLayout{
+        y: active-page == 2 ? 0 : active-page < 0 ? - height - 1px : parent.height + 1px;
+        animate y { duration: 125ms; easing: ease; }
+        alignment: start;
+        pid_line := LineEdit { 
+            placeholder-text: "Enter process id";
+            accepted(pid) =>{
+                if(check-pid(pid.to-float())){
+                    signal-code.enabled = true;
+                    placeholder-text = "Enter process id";
+                } else {
+                    text = "";
+                    placeholder-text = "Cannot find process with this id";
+                }
+            }
+         }
+         signal_code := LineEdit { 
+            placeholder-text: "Enter signal code";
+            enabled: false;
+            accepted(signal) =>{
+                text = "";
+                if(send-signal(pid-line.text.to-float(), signal.to-float())){
+                    placeholder-text = "Successfully sent signal";
+                } else {
+                    placeholder-text = "Something went wrong while sending signal";
+                }
+            }
+          }
+    }
+}

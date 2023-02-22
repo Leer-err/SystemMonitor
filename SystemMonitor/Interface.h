@@ -1,10 +1,10 @@
 #pragma once
 #include <functional>
-#include <ncurses.h>
 
 #include "utility.h"
 #include "Process.h"
 #include "Thread.h"
+#include <slint/slint.h>
 
 using std::function;
 
@@ -21,7 +21,7 @@ constexpr int time_len = 6;
 constexpr int priority_len = 8;
 
 class Interface {
-	static bool sort_by_cpu_usage(const Process& a, const Process& b) {
+	static bool sort_by_cpu_usage(const Process& a, const Process& b) {		
 		return a.get_exec_time_diff() > b.get_exec_time_diff();
 	}
 	static bool sort_by_mem_usage(const Process& a, const Process& b) {
@@ -57,35 +57,18 @@ public:
 		m_upd_fun = bind(&Interface::output_processes_info, this);
 	}
 
-	inline void set_window_size() {
-		getmaxyx(stdscr, m_terminal_height, m_terminal_width);
-	}
-
 	void update();
 
-	void show_all();
+	bool send_signal(int pid, int signal);
+	bool check_pid(int pid);
 
-	void send_signal();
-
-	void set_show_num();
-
-	void print_help();
+	void run();
 private:
 	Interface();
-	~Interface() { endwin(); }
+	~Interface() {};
 
 	Interface(const Interface&) = delete;
 	Interface& operator=(const Interface&) = delete;
-
-	void draw_line();
-	void color(float val);
-	void set_default_color();
-
-	void press_any_key();
-
-	int get_number();
-
-	void print_help_hint();
 
 	void output_sys_info();
 
@@ -94,9 +77,4 @@ private:
 
 	function<bool(const Process&, const Process&)> m_sort_fun = sort_by_mem_usage;
 	function<void()> m_upd_fun;
-
-	int m_terminal_width;
-	int m_terminal_height;
-
-	int m_show_num = 10;
 };
