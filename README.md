@@ -15,5 +15,8 @@ Sorting modes (in descending order):
 You can enter signaling mode by pressing k.
 You can get help message by pressing h key.
 
+# Documentation
+Code documentation can be generated using **Doxygen**
+
 # Building from source
 To build this project you'll need **slint** library. If you already got it you can build the project as any other cmake project.

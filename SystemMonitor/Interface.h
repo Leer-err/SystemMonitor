@@ -20,6 +20,9 @@ constexpr int cpu_usage_len = 7;
 constexpr int time_len = 6;
 constexpr int priority_len = 8;
 
+/*!
+	\brief Class providing user interface functionality
+*/
 class Interface {
 	static bool sort_by_cpu_usage(const Process& a, const Process& b) {		
 		return a.get_exec_time_diff() > b.get_exec_time_diff();
@@ -35,6 +38,9 @@ class Interface {
 		return a.get_exec_time_diff() > b.get_exec_time_diff();
 	}
 public:
+	/*!
+	\return class instance
+	*/
 	static Interface& get() {
 		static Interface instance;
 		return instance;
@@ -57,9 +63,23 @@ public:
 		m_upd_fun = bind(&Interface::output_processes_info, this);
 	}
 
+	/*!
+	Updates interface
+	*/
 	void update();
 
+	/*!
+	Sends signal to process
+	\param pid Process to which signal will be sent
+	\param signal Signal id
+	\return true if succeeded, false otherwise
+	*/
 	bool send_signal(int pid, int signal);
+	/*!
+	Checks if process with pid exists
+	\param pid Process to which signal will be sent
+	\return true if succeeded, false otherwise
+	*/
 	bool check_pid(int pid);
 
 	void run();
