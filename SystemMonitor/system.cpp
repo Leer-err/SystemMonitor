@@ -32,7 +32,7 @@ Thread get_thread_data(pid_t pid, pid_t tid) {
     return Thread();
 }
 
-void update_thread_data(pid_t pid, pid_t tid, Thread& thread) {
+Thread update_thread_data(pid_t pid, pid_t tid, Thread thread) {
     int priority;
     uint32_t user_time, kernel_time;
     uint64_t start_time;
@@ -61,6 +61,7 @@ void update_thread_data(pid_t pid, pid_t tid, Thread& thread) {
         thread.set_priority(priority);
         thread.set_time(kernel_time + user_time);
     }
+    return thread;
 }
 
 Process get_process_data(pid_t pid) {
@@ -104,7 +105,7 @@ Process get_process_data(pid_t pid) {
     return Process();
 }
 
-void update_process_data(pid_t pid, Process& process) {
+Process update_process_data(pid_t pid, Process process) {
     pid_t ppid;
     string name;
     char state;
@@ -145,6 +146,62 @@ void update_process_data(pid_t pid, Process& process) {
         process.set_time(kernel_time + user_time);
         process.set_threads(threads);
     }
+    return process;
+}
+
+uint32_t get_network_transmitted() {
+    ifstream net(network_path);
+
+    int recv = 0;
+    int trans = 0;
+
+    if (net.is_open()) {
+        string file_data;
+        net.ignore(numeric_limits<std::streamsize>::max(), '\n');
+        net.ignore(numeric_limits<std::streamsize>::max(), '\n');
+
+        while(true){
+            string dump, recieved, transmitted;
+
+            getline(net, file_data);
+            if(file_data.size() == 0) break;
+
+            istringstream st(file_data);
+            st >> dump >> dump >> dump
+            >> dump >> dump >> dump >> dump >> dump
+            >> dump >> transmitted;
+
+            trans += std::stoi(transmitted);
+        }
+    }
+    return trans;
+}
+
+
+uint32_t get_network_recieved() {
+    ifstream net(network_path);
+
+    int recv = 0;
+    int trans = 0;
+
+    if (net.is_open()) {
+        string file_data;
+        net.ignore(numeric_limits<std::streamsize>::max(), '\n');
+        net.ignore(numeric_limits<std::streamsize>::max(), '\n');
+
+        while(true){
+            string dump, recieved, transmitted;
+
+            getline(net, file_data);
+            if(file_data.size() == 0) break;
+
+            istringstream st(file_data);
+            st >> dump >> recieved;
+
+            recv += std::stoi(recieved);
+        }
+    }
+    return recv;
 }
 
 vector<pid_t> get_ids(string dir) {

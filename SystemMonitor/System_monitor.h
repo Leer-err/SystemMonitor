@@ -1,12 +1,15 @@
 ﻿#pragma once
 #include <map>
 #include <vector>
+#include <mutex>
 
 #include "Process.h"
 #include "Thread.h"
 
 using std::map;
 using std::vector;
+using std::mutex;
+using std::lock_guard;
 
 /*!
 	\brief Class for interacting with system
@@ -29,28 +32,58 @@ public:
     /*!
 	\return used virtual memory (in bytes)
 	*/
-    inline uint32_t get_used_mem() const { return m_used_mem; }
+    inline uint32_t get_used_mem() { 
+        lock_guard<mutex> lock = lock_guard<mutex>(m_update_mutex);
+        return m_used_mem; 
+    }
     /*!
 	\return installed RAM size (in bytes)
 	*/
-    inline uint32_t get_sys_mem() const { return m_sys_mem; }
+    inline uint32_t get_sys_mem() { 
+        lock_guard<mutex> lock = lock_guard<mutex>(m_update_mutex);
+        return m_sys_mem; 
+    }
 
     /*!
 	\return CPU time in user and kernel modes (in system ticks)
 	*/
-    inline uint32_t get_load_delta() const { return m_current_load_time - m_last_load_time; }
+    inline uint32_t get_load_delta() { 
+        lock_guard<mutex> lock = lock_guard<mutex>(m_update_mutex);
+        return m_current_load_time - m_last_load_time; 
+    }
     /*!
 	\return CPU time since last update (in system ticks)
 	*/
-    inline uint32_t get_cpu_delta() const { return m_current_time - m_last_time; }
+    inline uint32_t get_cpu_delta() { 
+        lock_guard<mutex> lock = lock_guard<mutex>(m_update_mutex);
+        return m_current_time - m_last_time; 
+    }
+
+    /*!
+	\return Bytes transmitted to network since last update
+	*/
+    inline uint32_t get_net_transmit_usage() { 
+        lock_guard<mutex> lock = lock_guard<mutex>(m_update_mutex);
+        return m_net_trans_curr - m_net_trans_prev; 
+    }
+    /*!
+	\return Bytes recieved from network since last update
+	*/
+    inline uint32_t get_net_recv_usage() { 
+        lock_guard<mutex> lock = lock_guard<mutex>(m_update_mutex);
+        return m_net_recv_curr - m_net_recv_prev; 
+    }
 
     /*!
 	\return system uptime (in system ticks)
 	*/
-    inline uint32_t get_uptime() const { return m_uptime; }
+    inline uint32_t get_uptime() { 
+        lock_guard<mutex> lock = lock_guard<mutex>(m_update_mutex);
+        return m_uptime; 
+    }
 
-    vector<Process> get_processes() const;
-    vector<Thread> get_threads() const;
+    vector<Process> get_processes();
+    vector<Thread> get_threads();
 private:
     System_monitor() = default;
     ~System_monitor() = default;
@@ -71,4 +104,11 @@ private:
 
     uint32_t m_sys_mem;
     uint32_t m_used_mem;
+
+    uint32_t m_net_recv_prev;
+    uint32_t m_net_recv_curr;
+    uint32_t m_net_trans_prev;
+    uint32_t m_net_trans_curr;
+
+    mutex m_update_mutex;
 };

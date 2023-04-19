@@ -23,6 +23,7 @@ export struct ThreadData := {
 export struct TimeStamp := {
     cpu: int,
     mem: int,
+    net: int,
 }
 ProcessHeader := HorizontalLayout{
     Text { 
@@ -75,6 +76,8 @@ SystemInfo := HorizontalLayout{
     property <int> memory_used;
     property <int> cpu_used;
     property <int> memory_utilization;
+    property <int> transmission_speed;
+    property <int> reception_speed;
 
     HorizontalLayout{ 
         spacing: 20px;
@@ -84,6 +87,8 @@ SystemInfo := HorizontalLayout{
             alignment: start;
             system_memory := Text{text:"Memory: " + memory-used + "/" + memory-installed + " Mb " + memory-utilization + " %";}
             Text{text:"CPU: " + cpu_used + " %";}
+            Text{text:"Transmission speed: " + transmission_speed + " Kb/s";}
+            Text{text:"Reception speed: " + reception_speed + " Kb/s";}
         }
         HorizontalLayout {
             VerticalLayout { 
@@ -132,6 +137,30 @@ SystemInfo := HorizontalLayout{
             }
             Text { 
                 text: "Memory usage";
+             }
+            }
+            VerticalLayout {
+            Path {
+                width: 200px;
+                height: 100px;
+                stroke: green;
+                stroke-width: 1px;
+
+                MoveTo{x:0;y:0;}
+                LineTo{x:0;y:100;}
+                LineTo{x:200;y:100;}
+                LineTo{x:200;y:0;}
+                LineTo {x:0;y:0;}
+                MoveTo{x: 0;y:100-graph[0].net;}
+                LineTo{x: 50;y:100-graph[1].net;}
+                LineTo{x: 100;y:100-graph[2].net;}
+                LineTo{x: 150;y:100-graph[3].net;}
+                LineTo{x: 200;y:100-graph[4].net;}
+                MoveTo{x: 0;y:0;}
+                Close{}
+            }
+            Text { 
+                text: "Network usage";
              }
             } 
         }
@@ -218,6 +247,8 @@ HelloWorld := Window {
     property <int> memory_used <=> info.memory_used;
     property <int> memory_utilization <=> info.memory_utilization;
     property <int> cpu_used <=> info.cpu_used;
+    property <int> transmission_speed <=> info.transmission_speed;
+    property <int> reception_speed <=> info.reception_speed;
     property <int> active-page : 0;
 
     width: 1280px;

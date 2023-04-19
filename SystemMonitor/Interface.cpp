@@ -63,6 +63,9 @@ void Interface::output_sys_info() {
 	uint32_t uptime = System_monitor::get().get_uptime();
 	float memory_utilization = (float)System_monitor::get().get_used_mem() / System_monitor::get().get_sys_mem();
  	float cpu_utilization = (float)System_monitor::get().get_load_delta() / System_monitor::get().get_cpu_delta();
+	int trans = System_monitor::get().get_net_transmit_usage();
+	int recv = System_monitor::get().get_net_recv_usage();
+	int network_utilization = recv + trans;
 
 	auto graph = window->get_graph();
 	for(int i = 0;i < 4;i++){
@@ -72,6 +75,7 @@ void Interface::output_sys_info() {
 	TimeStamp time_stamp = {};
 	time_stamp.cpu = cpu_utilization * 100;
 	time_stamp.mem = memory_utilization * 100;
+	time_stamp.net = network_utilization / 1024 / 1024;
 	
 	graph->set_row_data(4, time_stamp);
 	window->set_graph(graph);
@@ -80,23 +84,26 @@ void Interface::output_sys_info() {
 	window->set_memory_installed(System_monitor::get().get_sys_mem() / 1024);
 	window->set_memory_used(System_monitor::get().get_used_mem() / 1024);
 	window->set_memory_utilization(memory_utilization * 100);
+	window->set_transmission_speed(trans / 1024);
+	window->set_reception_speed(recv / 1024 );
 }
 
 void Interface::output_processes_info() {
  	uint32_t cpu_time = System_monitor::get().get_cpu_delta();
-	
-	auto processData = std::make_shared<slint::VectorModel<ProcessData>>();
+	uint32_t uptime = System_monitor::get().get_uptime();
+	auto processes = System_monitor::get().get_processes();
 
-	vector<Process> processes = System_monitor::get().get_processes();
 	sort(processes.begin(), processes.end(), m_sort_fun);
 
+	auto procData = vector<ProcessData>();
+	procData.reserve(processes.size());
+	int i =0;
 	for(const auto& process: processes){
-
 		if (process.get_state() == State::invalid) continue;
 
 		float cpu_utilization = (float)process.get_exec_time_diff() / cpu_time * 10;
 		int start_time = process.get_start_time() / sysconf(_SC_CLK_TCK);
-		int lifetime = System_monitor::get().get_uptime() - start_time;
+		int lifetime = uptime - start_time;
 		ProcessData data = {};
 		data.name = std::string_view(process.get_name());
 		data.cpu_per = cpu_utilization * 12.5f;
@@ -107,27 +114,32 @@ void Interface::output_processes_info() {
 		data.up_minutes = lifetime / 60 % 60;
 		data.up_seconds = lifetime % 60;
 
-		processData->push_back(data);
+		procData.push_back(data);
+		if(++i ==1000) break;
 	}
+
+	std::shared_ptr<slint::VectorModel<ProcessData>> processData = std::make_shared<slint::VectorModel<ProcessData>>(procData);
 
 	window->set_processes(processData);
 }
 
 void Interface::output_threads_info() {
+	const uint32_t tick_time = sysconf(_SC_CLK_TCK);
 	uint32_t cpu_time = System_monitor::get().get_cpu_delta();
+	uint32_t uptime = System_monitor::get().get_uptime();
 
 	auto threadData = std::make_shared<slint::VectorModel<ThreadData>>();
 
 	vector<Thread> threads = System_monitor::get().get_threads();
 	sort(threads.begin(), threads.end(), sort_threads);
-
+ 	int i = 0;
 	for(const auto& thread: threads){
 
 		if (thread.get_state() == State::invalid) continue;
 
 		float cpu_utilization = (float)thread.get_exec_time_diff() / cpu_time * 10;
-		int start_time = thread.get_start_time() / sysconf(_SC_CLK_TCK);
-		int lifetime = System_monitor::get().get_uptime() - start_time;
+		int start_time = thread.get_start_time() / tick_time;
+		int lifetime = uptime - start_time;
 		ThreadData data = {};
 		data.cpu_per = cpu_utilization * 12.5f;
 		data.tid = thread.get_tid();
@@ -137,6 +149,7 @@ void Interface::output_threads_info() {
 		data.up_seconds = lifetime % 60;
 
 		threadData->push_back(data);
+		if(++i ==1000) break;
 	}
 
 	window->set_threads(threadData);
